@@ -1,5 +1,7 @@
 #![allow(clippy::redundant_field_names)]
 #![allow(clippy::too_many_arguments)]
+use std::env;
+
 use bevy::{prelude::*, render::camera::ScalingMode, window::PresentMode};
 
 pub const CLEAR: Color = Color::rgb(0.1, 0.1, 0.1);
@@ -77,4 +79,8 @@ fn spawn_camera(mut commands: Commands) {
         ..default()
     };
     commands.spawn_bundle(camera);
+}
+
+fn get_assets_path(file: &str) -> String {
+    format!("{}/assets/{}",env::current_dir().unwrap().to_str().unwrap(),file)
 }

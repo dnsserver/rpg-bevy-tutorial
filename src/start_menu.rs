@@ -1,6 +1,6 @@
 use bevy::{prelude::*, ui::FocusPolicy};
 
-use crate::{ascii::AsciiSheet, fadeout::create_fadeout, GameState};
+use crate::{ascii::AsciiSheet, fadeout::create_fadeout, GameState, get_assets_path};
 
 pub struct MainMenuPlugin;
 
@@ -58,9 +58,9 @@ fn handle_start_button(
 
 fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
     let ui_assets = UiAssets {
-        font: assets.load("QuattrocentoSans-Bold.ttf"),
-        button: assets.load("button.png"),
-        button_pressed: assets.load("button_pressed.png"),
+        font: assets.load(&get_assets_path("fonts/QuattrocentoSans-Bold.ttf")),
+        button: assets.load(&get_assets_path("images/button.png")),
+        button_pressed: assets.load(&get_assets_path("images/button_pressed.png")),
     };
 
     //commands.spawn_bundle(UiCameraBundle::default());

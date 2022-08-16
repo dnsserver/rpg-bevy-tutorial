@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_kira_audio::{AudioChannel, AudioPlugin, AudioSource, AudioApp, AudioControl};
 
 use crate::combat::{CombatState, FightEvent};
-use crate::GameState;
+use crate::{GameState, get_assets_path};
 
 pub struct GameAudioPlugin;
 
@@ -94,10 +94,10 @@ fn load_audio(
     cb_audio: Res<AudioChannel<Combat>>, 
     assets: Res<AssetServer>
 ) {
-    let bgm_handle = assets.load("bip-bop.ogg");
-    let combat_handle = assets.load("ganxta.ogg");
-    let hit_handle = assets.load("hit.wav");
-    let reward_handle = assets.load("reward.wav");
+    let bgm_handle = assets.load(&get_assets_path("audio/bip-bop.ogg"));
+    let combat_handle = assets.load(&get_assets_path("audio/ganxta.ogg"));
+    let hit_handle = assets.load(&get_assets_path("audio/hit.wav"));
+    let reward_handle = assets.load(&get_assets_path("audio/reward.wav"));
 
 
     /*

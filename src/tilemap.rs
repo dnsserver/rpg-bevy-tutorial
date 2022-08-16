@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use crate::{
     ascii::{spawn_ascii_sprite, AsciiSheet},
     npc::Npc,
-    GameState, TILE_SIZE,
+    GameState, TILE_SIZE, get_assets_path,
 };
 
 pub struct TileMapPlugin;
@@ -59,7 +59,7 @@ fn show_map(
 }
 
 fn create_simple_map(mut commands: Commands, ascii: Res<AsciiSheet>) {
-    let file = File::open("assets/map.txt").expect("No map file found");
+    let file = File::open(&get_assets_path("maps/map.txt")).expect("No map file found");
     let mut tiles = Vec::new();
 
     for (y, line) in BufReader::new(file).lines().enumerate() {

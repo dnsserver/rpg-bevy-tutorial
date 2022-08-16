@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::EnemyType;
+use crate::{combat::EnemyType, get_assets_path};
 
 pub struct GraphicsPlugin;
 
@@ -85,7 +85,7 @@ impl GraphicsPlugin {
         assets: Res<AssetServer>,
         mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     ) {
-        let image = assets.load("characters.png");
+        let image = assets.load(&get_assets_path("images/characters.png"));
         let atlas =
             TextureAtlas::from_grid_with_padding(image, Vec2::splat(16.0), 12, 8, Vec2::splat(2.0), Vec2::ZERO);
         let atlas_handle = texture_atlases.add(atlas);
