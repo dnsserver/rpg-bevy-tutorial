@@ -16,18 +16,14 @@ use crate::{
 
 pub struct PlayerPlugin;
 
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-pub struct EncounterTracker {
-    timer: Timer,
-}
+struct DangerousGrounds(bool);
 
 #[derive(Component, Inspectable)]
 pub struct Player {
-    speed: f32,
     pub active: bool,
-    just_moved: bool,
     pub exp: usize,
+    pub max_steps: u32,
+    pub step: u32,
 }
 
 impl Player {
@@ -47,7 +43,8 @@ impl Player {
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_resume(GameState::Overworld).with_system(show_player))
+        app.add_event::<DangerousGrounds>()
+            .add_system_set(SystemSet::on_resume(GameState::Overworld).with_system(show_player))
             .add_system_set(SystemSet::on_pause(GameState::Overworld).with_system(hide_player))
             .add_system_set(
                 SystemSet::on_update(GameState::Overworld)
@@ -95,26 +92,20 @@ fn show_player(
 }
 
 fn player_encounter_checking(
-    mut commands: Commands,
-    mut player_query: Query<(&mut Player, &mut EncounterTracker, &Transform)>,
+    player_query: Query<&Transform, With<Player>>,
     encounter_query: Query<&Transform, (With<EncounterSpawner>, Without<Player>)>,
-    ascii: Res<AsciiSheet>,
-    time: Res<Time>,
+    mut dangerous_grounds: EventWriter<DangerousGrounds>,
 ) {
-    let (mut player, mut encounter_tracker, player_transform) = player_query.single_mut();
+    let player_transform = player_query.single();
     let player_translation = player_transform.translation;
 
-    if player.just_moved
-        && encounter_query
+    if encounter_query
             .iter()
             .any(|&transform| wall_collision_check(player_translation, transform.translation))
     {
-        encounter_tracker.timer.tick(time.delta());
-
-        if encounter_tracker.timer.just_finished() {
-            player.active = false;
-            create_fadeout(&mut commands, Some(GameState::Combat), &ascii);
-        }
+        dangerous_grounds.send(DangerousGrounds(true));
+    }else{
+        dangerous_grounds.send(DangerousGrounds(false));
     }
 }
 
@@ -130,58 +121,56 @@ fn camera_follow(
 }
 
 fn player_movement(
+    mut commands: Commands,
     mut player_query: Query<(&mut Player, &mut Transform, &mut PlayerGraphics)>,
     wall_query: Query<&Transform, (With<TileCollider>, Without<Player>)>,
     keyboard: Res<Input<KeyCode>>,
-    time: Res<Time>,
+    mut dangerous_grounds: EventReader<DangerousGrounds>,
+
+    ascii: Res<AsciiSheet>,
+    //time: Res<Time>,
 ) {
     let (mut player, mut transform, mut graphics) = player_query.single_mut();
-    player.just_moved = false;
 
     if !player.active {
         return;
     }
 
-    let mut y_delta = 0.0;
-    if keyboard.pressed(KeyCode::W) {
-        y_delta += player.speed * TILE_SIZE * time.delta_seconds();
-    }
-    if keyboard.pressed(KeyCode::S) {
-        y_delta -= player.speed * TILE_SIZE * time.delta_seconds();
+    let danger = dangerous_grounds.iter().any(|b| b.0);
+        
+
+    let mut delta_movement = Vec3::new(0.,0.,0.);
+    if keyboard.just_pressed(KeyCode::W){
+        delta_movement.y += TILE_SIZE;
+    }else if keyboard.just_pressed(KeyCode::S){
+        delta_movement.y -= TILE_SIZE;
+    }else if keyboard.just_pressed(KeyCode::A){
+        delta_movement.x -= TILE_SIZE;
+    }else if keyboard.just_pressed(KeyCode::D){
+        delta_movement.x += TILE_SIZE;
     }
 
-    let mut x_delta = 0.0;
-    if keyboard.pressed(KeyCode::A) {
-        x_delta -= player.speed * TILE_SIZE * time.delta_seconds();
-    }
-    if keyboard.pressed(KeyCode::D) {
-        x_delta += player.speed * TILE_SIZE * time.delta_seconds();
-    }
-
-    let target = transform.translation + Vec3::new(0.0, y_delta, 0.0);
+    let target = transform.translation + delta_movement;
     if !wall_query
         .iter()
         .any(|&transform| wall_collision_check(target, transform.translation))
     {
-        if y_delta != 0.0 {
-            player.just_moved = true;
-            if y_delta > 0.0 {
-                graphics.facing = FacingDirection::Up;
-            } else {
-                graphics.facing = FacingDirection::Down;
+        if delta_movement.y != 0.0 || delta_movement.x != 0.0 {
+            if danger {
+                player.step += 1;
             }
-        }
-        transform.translation = target;
-    }
 
-    let target = transform.translation + Vec3::new(x_delta, 0.0, 0.0);
-    if !wall_query
-        .iter()
-        .any(|&transform| wall_collision_check(target, transform.translation))
-    {
-        if x_delta != 0.0 {
-            player.just_moved = true;
-            if x_delta > 0.0 {
+            if player.step > player.max_steps {
+                player.active = false;
+                player.step = 0;
+                create_fadeout(&mut commands, Some(GameState::Combat), &ascii);
+                return;
+            }
+            if delta_movement.y > 0.0 {
+                graphics.facing = FacingDirection::Up;
+            } else if delta_movement.y < 0.0 {
+                graphics.facing = FacingDirection::Down;
+            }else if delta_movement.x > 0.0 {
                 graphics.facing = FacingDirection::Right;
             } else {
                 graphics.facing = FacingDirection::Left;
@@ -223,13 +212,10 @@ fn spawn_player(mut commands: Commands, characters: Res<CharacterSheet>) {
         })
         .insert(Name::new("Player"))
         .insert(Player {
-            speed: 3.0,
             active: true,
-            just_moved: false,
             exp: 0,
-        })
-        .insert(EncounterTracker {
-            timer: Timer::from_seconds(1.0, true),
+            step: 0,
+            max_steps: 5,
         })
         .insert(CombatStats {
             health: 10,
